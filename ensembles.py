@@ -100,7 +100,7 @@ class RandomForestMSE:
             dtr = self.models[alg]
             predicts[alg] = dtr.predict(X[:, ind])
             
-        res = np.sum(predicts, axis = 0) / np.count_nonzero(predicts, axis = 0)
+        res = np.sum(predicts, axis=0) / np.count_nonzero(predicts, axis=0)
         return res
 
 
@@ -146,8 +146,8 @@ class GradientBoostingMSE:
             if X.shape[1] != X_val.shape[1]:
                 raise Exception("X.shape[1] != X_val.shape[1]!!!")
 
-        def L(alpha, y, prev_pred, corr):
-            return ((prev_pred + alpha * corr - y) ** 2).sum()
+        def L(alpha, y, prev_pred, b_t):
+            return ((prev_pred + alpha * b_t - y) ** 2).sum()
         
         if self.feature_subsample_size is None:
             self.feature_subsample_size = X.shape[1] // 3
@@ -175,7 +175,7 @@ class GradientBoostingMSE:
 
             loss_train.append(RMSE(y, prev_pred))
             if X_val is not None:
-                val_prev_pred += self.learning_rate * alpha *  dtr.predict(X_val[:, feat_idx])
+                val_prev_pred += self.learning_rate * alpha * dtr.predict(X_val[:, feat_idx])
                 loss_val.append(RMSE(y_val, val_prev_pred))
             self.alphas.append(alpha)
             times.append(time() - start_time)
@@ -198,4 +198,4 @@ class GradientBoostingMSE:
         self.alphas = np.array(self.alphas)
         return (preds * self.alphas.reshape(-1, 1)).sum(axis=0) * self.learning_rate
 
-print("OK!") # чтобы удостовериться, что в google collab произошёл import
+print("OK!")  # чтобы удостовериться, что в google collab произошёл import
