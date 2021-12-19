@@ -119,7 +119,14 @@ class GradientBoostingMSE:
         feature_subsample_size : float
             The size of feature set for each tree. If None then use one-third of all features.
         """
-      
+        self.n_estimators = n_estimators
+        self.learning_rate = learning_rate
+        self.max_depth = max_depth
+        self.feature_subsample_size = feature_subsample_size
+        self.feat_idx = []
+        self.models = []
+        self.DTR = DecisionTreeRegressor
+        self.trees_parameters = trees_parameters
 
     def fit(self, X, y, X_val=None, y_val=None):
         """
@@ -128,6 +135,55 @@ class GradientBoostingMSE:
         y : numpy ndarray
             Array of size n_objects
         """
+        if X.shape[0] != y.shape[0]:
+            raise Exception("X.shape[0] != y.shape[0]!!!")
+
+        if X_val is not None:
+            if y_val is None:
+                raise Exception("y_val is None!!!")
+            if X_val.shape[0] != y_val.shape[0]:
+                raise Exception("X_val.shape[0] != y_val.shape[0]!!!")
+            if X.shape[1] != X_val.shape[1]:
+                raise Exception("X.shape[1] != X_val.shape[1]!!!")
+
+        def L(alpha, y, prev_pred, corr):
+            return ((prev_pred + alpha * corr - y) ** 2).sum()
+        
+        if self.feature_subsample_size is None:
+            self.feature_subsample_size = X.shape[1] // 3
+
+        loss_train = []
+        loss_val = []
+        times = []
+        self.alphas = []
+
+        prev_pred = 0
+        if X_val is not None:
+            val_prev_pred = 0
+
+        start_time = time()
+
+        for idx in range(self.n_estimators):
+            feat_idx = np.random.choice(X.shape[1], self.feature_subsample_size, replace=False)
+            self.feat_idx.append(feat_idx)
+            dtr = self.DTR(max_depth=self.max_depth, **self.trees_parameters)
+            dtr.fit(X[:, feat_idx], y - prev_pred)
+            b_t = dtr.predict(X[:, feat_idx])
+            self.models.append(dtr)
+            alpha = minimize_scalar(L, args=(y, prev_pred, b_t)).x
+            prev_pred += self.learning_rate * alpha * b_t
+
+            loss_train.append(RMSE(y, prev_pred))
+            if X_val is not None:
+                val_prev_pred += self.learning_rate * alpha *  dtr.predict(X_val[:, feat_idx])
+                loss_val.append(RMSE(y_val, val_prev_pred))
+            self.alphas.append(alpha)
+            times.append(time() - start_time)
+
+        if X_val is not None:
+            return loss_train, loss_val, times
+        else:
+            return loss_train, times
 
     def predict(self, X):
         """
@@ -138,4 +194,8 @@ class GradientBoostingMSE:
         y : numpy ndarray
             Array of size n_objects
         """
-       
+        preds = np.array([model.predict(X[:, idx]) for model, idx in zip(self.models, self.feat_idx)])
+        self.alphas = np.array(self.alphas)
+        return (preds * self.alphas.reshape(-1, 1)).sum(axis=0) * self.learning_rate
+
+print("OK!") # чтобы удостовериться, что в google collab произошёл import
