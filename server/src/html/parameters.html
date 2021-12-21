@@ -27,13 +27,13 @@
         <h3> Название файла обучающей выборки: 
             {{ form_pred.message_data.file_train.data.filename }} </h3>
 
-        <h3> Название файла тестовой выборки: 
+        <h3> Название файла валидационной выборки: 
             {{ form_pred.message_data.file_val.data.filename }} </h3>
 
-        <h3> Ошибка на обучающей выборке: 
+        <h3> Ошибка (RMSE) на обучающей выборке: 
             {{ form_pred.message_loss_train[-1] }} </h3>
 
-        <h3> Ошибка на обучающей выборке: 
+        <h3> Ошибка (RMSE) на валидационной выборке: 
             {{ form_pred.message_loss_val[-1] }} </h3>
 
         <h4><table  border="1" width="800" style="border-collapse:collapse; height:100px"
@@ -42,6 +42,7 @@
             <td><b>Номер итерации</td>
             <td><b>RMSE на обучающей выборке</td>
             <td><b>RMSE на валидационной выборке</td>
+            <td><b>Время</td>
             <tr>
             
             {% for i in numbers%}
@@ -49,6 +50,7 @@
                     <td>{{i}}
                     <td>{{form_pred.message_loss_train[i]}}</td>
                     <td>{{form_pred.message_loss_val[i]}}</td>
+                    <td>{{form_pred.message_times[i]}}</td>
                 </tr>
             {%endfor%}
             <table></h4>
