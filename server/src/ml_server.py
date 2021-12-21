@@ -24,7 +24,7 @@ from flask_wtf.file import FileAllowed
 from wtforms.validators import DataRequired
 from wtforms import StringField, SubmitField, FileField
 from wtforms import SelectField, TextAreaField, IntegerField, DecimalField, RadioField
-
+import ensembles as ens
 
 app = Flask(__name__, template_folder='html')
 app.config['BOOTSTRAP_SERVE_LOCAL'] = True
@@ -39,6 +39,9 @@ class Message:
     message_name = 0
     message_train = 0
     message_val = 0
+    message_loss_train = 0
+    message_loss_val = 0
+    message_times = 0
 
 class RandomForest(Form):
     n_estimators = IntegerField('Количество деревьев в ансамбле:', 
@@ -47,13 +50,15 @@ class RandomForest(Form):
                         [DataRequired(), validators.NumberRange(min=1, max=10000)])
     max_depth = IntegerField('Максимальная глубина дерева', [DataRequired(), 
                         validators.NumberRange(min=1, max=100)])
-    data_train = FileField('Обучающая выборка', 
+    file_train = FileField('Обучающая выборка', 
                         validators=[DataRequired('Specify file'), FileAllowed(['csv'], 'CSV only!')])
     # val_bool = IntegerField('Вы хотите загрузить валидационную выборку? (нет == 1, да == 2)', 
     #                     [DataRequired(), validators.NumberRange(min=1, max=2)])
-    data_val = FileField('Валидационная выборка (если ответили нет, то можете не загружать)', 
+    file_val = FileField('Валидационная выборка (если ответили нет, то можете не загружать)', 
                         validators=[DataRequired('Specify file'), FileAllowed(['csv'], 'CSV only!')])
     # DataRequired('Specify file') чтобы файл загрузили
+    data_train = 0
+    data_val = 0
     submit = SubmitField("Загрузить")
 
 class GradientBoosting(Form):
@@ -65,68 +70,110 @@ class GradientBoosting(Form):
                         [DataRequired(), validators.NumberRange(min=1, max=100)])
     learning_rate = DecimalField('Темп обучения:', 
                         [DataRequired(), validators.NumberRange(min=0.00000001, max=10)])
-    data_train = FileField('Обучающая выборка', 
+    file_train = FileField('Обучающая выборка', 
                         validators=[DataRequired('Specify file'),FileAllowed(['csv'], 'CSV only!')])
     # val_bool = IntegerField('Вы хотите загрузить валидационную выборку? (нет == 1, да == 2)', 
     #                     [DataRequired(), validators.NumberRange(min=1, max=2)])
-    data_val = FileField('Валидационная выборка (если ответили нет, то можете не загружать)', 
+    file_val = FileField('Валидационная выборка (если ответили нет, то можете не загружать)', 
                         validators=[DataRequired('Specify file'), FileAllowed(['csv'], 'CSV only!')])
+    data_train = 0
+    data_val = 0
     submit = SubmitField("Загрузить")
 
 
 ensemble = 0
 
 @app.route('/RandomForest', methods=['GET', 'POST'])
-def RF_model():
+def forest_model():
     RF_field = RandomForest()
     global ensemble
     if RF_field.validate_on_submit():
-        data_train = pd.read_csv(RF_field.data_train.data)
-        data_val = pd.read_csv(RF_field.data_val.data)
-        # if RF_field.feature_subsample_size.data > data_train.shape[1]:
-        #     flash("Размерность пространства признаков меньше, чем Вы выбрали!")
-        #     return redirect(url_for('RF_model'))
+        data_train = pd.read_csv(RF_field.file_train.data)
+        data_val = pd.read_csv(RF_field.file_val.data)
 
-        if "price" not in data_train.columns or "price" not in data_val.columns:
-            return redirect(url_for('Error'))
-        # y_train = data_train["price"]
-        # X_train = data_train.drop("price", axis=1)
+        if RF_field.feature_subsample_size.data > data_train.shape[1]:
+            flash("Вы выбрали слишком много признаков :с")
+            return redirect(url_for('forest_model'))
+
+        if "pric" not in data_train.columns:
+            flash("Столбик с именем 'price' отсутствует в обучающей выборке :с")
+            return redirect(url_for('forest_model'))
+        
+        if "price" not in data_val.columns:
+            flash("Столбик с именем 'price' отсутствует в валидационной выборке :с")
+            return redirect(url_for('forest_model'))
+
+        if False in (data_train.columns == data_val.columns):
+            flash("В обучающей и валидационной выборках разные признаки :с")
+            return redirect(url_for('forest_model'))
+
+        if "date" in data_train.columns:
+            data_train['date'] = pd.to_datetime(data_train['date'])
+            data_train['day'] = data_train['date'].dt.day
+            data_train['month'] = data_train['date'].dt.month
+            data_train['year'] = data_train['date'].dt.year
+            data_train = data_train.drop(['date'], axis=1)
+            data_val['date'] = pd.to_datetime(data_val['date'])
+            data_val['day'] = data_val['date'].dt.day
+            data_val['month'] = data_val['date'].dt.month
+            data_val['year'] = data_val['date'].dt.year
+            data_val = data_val.drop(['date'], axis=1)
+
+        if "id" in data_train.columns:
+            data_train = data_train.drop(['id'], axis=1)
+            data_val = data_val.drop(['id'], axis=1)
+
+        RF_field.data_train = data_train
+        RF_field.data_val = data_val
         ensemble = RF_field
         return redirect(url_for('predict'))
     return render_template('RandomForest.html', title = 'Random Forest', form=RF_field)
 
 @app.route('/GradientBoosting', methods=['GET', 'POST'])
-def GB_model():
+def gradient_model():
     GB_field = GradientBoosting()
     global ensemble
     if GB_field.validate_on_submit():
-        data_train = pd.read_csv(GB_field.data_train.data)
-        data_val = pd.read_csv(GB_field.data_val.data)
-        # if GB_field.feature_subsample_size.data > GB_field.data_train.shape[1]:
-        #     flash("Размерность пространства признаков меньше, чем Вы выбрали!")
-        #     return redirect(url_for('GB_model'))
-        # if GB_field.val_bool.data == 2:
-        #     data_val = pd.read_csv(GB_field.data_val.data)
-        #     y_val = data_val["price"]
-        #     X_val = data_val.drop("price", axis=1)
-        if "price" not in data_train.columns or "price" not in data_val.columns:
-            return redirect(url_for('error'))
+        data_train = pd.read_csv(GB_field.file_train.data)
+        data_val = pd.read_csv(GB_field.file_val.data)
 
-        # y_train = GB_field.data_train["price"]
-        # X_train = GB_field.data_train.drop("price", axis=1)
+        if GB_field.feature_subsample_size.data > data_train.shape[1]:
+            flash("Вы выбрали слишком много признаков :с")
+            return redirect(url_for('gradient_model'))
+
+        if "price" not in data_train.columns:
+            flash("Столбик с именем 'price' отсутствует в обучающей выборке :с")
+            return redirect(url_for('gradient_model'))
+        
+        if "price" not in data_val.columns:
+            flash("Столбик с именем 'price' отсутствует в валидационной выборке :с")
+            return redirect(url_for('gradient_model'))
+
+        if False in (data_train.columns == data_val.columns):
+            flash("В обучающей и валидационной выборках разные признаки :с")
+            return redirect(url_for('gradient_model'))
+
+        if "date" in data_train.columns:
+            data_train['date'] = pd.to_datetime(data_train['date'])
+            data_train['day'] = data_train['date'].dt.day
+            data_train['month'] = data_train['date'].dt.month
+            data_train['year'] = data_train['date'].dt.year
+            data_train = data_train.drop(['date'], axis=1)
+            data_val['date'] = pd.to_datetime(data_val['date'])
+            data_val['day'] = data_val['date'].dt.day
+            data_val['month'] = data_val['date'].dt.month
+            data_val['year'] = data_val['date'].dt.year
+            data_val = data_val.drop(['date'], axis=1)
+        
+        if "id" in data_train.columns:
+            data_train = data_train.drop(['id'], axis=1)
+            data_val = data_val.drop(['id'], axis=1)
+
+        GB_field.data_train = data_train
+        GB_field.data_val = data_val
         ensemble = GB_field
         return redirect(url_for('predict'))
     return render_template('GradientBoosting.html', title = 'Gradient Boosting', form=GB_field)
-
-# <h3> Максимальная глубина дерева: 
-#         {{ form22.data_train.data.filename }} </h3>
-
-#  <h3> Максимальная глубина дерева: 
-#     {{ form22.message_data.data_train.data.filename }} </h3>
-
-# <!-- {% for mesg in get_flashed_messages() %}
-#         <h2>{{ mesg }}</h2>
-#     {% endfor %} -->
 
 @app.route('/error', methods=['GET', 'POST'])
 def error():
@@ -134,14 +181,44 @@ def error():
 
 @app.route('/parameters', methods=['GET', 'POST'])
 def predict():
+    
     mes = Message()
-    mes.message_bool = False
-    mes.message_name = "Random Forest"
+    y_train = ensemble.data_train['price'].values
+    X_train = ensemble.data_train.drop(['price'], axis=1).values
+    y_test = ensemble.data_val['price'].values
+    X_test = ensemble.data_val.drop(['price'], axis=1).values
+
+    parameters_fit = {
+        'X': X_train,
+        'y': y_train,
+        'X_val': X_test,
+        'y_val': y_test
+    }
+    parameters_model = {
+        'n_estimators': ensemble.n_estimators.data,
+        'max_depth': ensemble.max_depth.data,
+        'feature_subsample_size': ensemble.feature_subsample_size.data,
+    }
+
     if isinstance(ensemble, GradientBoosting):
         mes.message_bool = True
         mes.message_name = "Gradient Boosting"
+        parameters_model['learning_rate'] = float(ensemble.learning_rate.data)
+        GB = ens.GradientBoostingMSE(**parameters_model)
+        loss_train, loss_val, times = GB.fit(**parameters_fit)
+    else:
+        mes.message_bool = False
+        mes.message_name = "Random Forest"
+        RanFor = ens.RandomForestMSE(**parameters_model)
+        loss_train, loss_val, times = RanFor.fit(**parameters_fit)
+
+    mes.message_loss_train = loss_train
+    mes.message_loss_val = loss_val
+    mes.message_times = times
+
     mes.message_data = ensemble
-    return render_template('parameters.html', form_pred = mes)
+    return render_template('parameters.html', form_pred = mes, 
+                            numbers = list(range(ensemble.n_estimators.data)))
 
 # , form=ensemble
 class Response(FlaskForm):

@@ -25,11 +25,35 @@
         {% endif %}
 
         <h3> Название файла обучающей выборки: 
-            {{ form_pred.message_data.data_train.data.filename }} </h3>
+            {{ form_pred.message_data.file_train.data.filename }} </h3>
 
         <h3> Название файла тестовой выборки: 
-            {{ form_pred.message_data.data_val.data.filename }} </h3>
-    
+            {{ form_pred.message_data.file_val.data.filename }} </h3>
+
+        <h3> Ошибка на обучающей выборке: 
+            {{ form_pred.message_loss_train[-1] }} </h3>
+
+        <h3> Ошибка на обучающей выборке: 
+            {{ form_pred.message_loss_val[-1] }} </h3>
+
+        <h4><table  border="1" width="800" style="border-collapse:collapse; height:100px"
+            cellspacing="0" cellpadding="10">
+            <tr>
+            <td><b>Номер итерации</td>
+            <td><b>RMSE на обучающей выборке</td>
+            <td><b>RMSE на валидационной выборке</td>
+            <tr>
+            
+            {% for i in numbers%}
+                <tr valign="middle">
+                    <td>{{i}}
+                    <td>{{form_pred.message_loss_train[i]}}</td>
+                    <td>{{form_pred.message_loss_val[i]}}</td>
+                </tr>
+            {%endfor%}
+            <table></h4>
+            <br>
+
     </div>
 </div>
 {% endblock %}

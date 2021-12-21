@@ -9,10 +9,14 @@
             Столбец с целевой переменной должен называться "price".</h2> </center>
     </div>
 
+    {% for mesg in get_flashed_messages() %}
+      <h2><span style="color: darkred;">{{ mesg }}</span></h2>
+    {% endfor %}
+    
     <div style="color: #4B0082;"> 
-    <hr>
+    <hr><h4>
         {{ wtf.quick_form(form) }}
-    <hr>
+    <hr></h4>
     </div>
 </div>
 {% endblock %}
