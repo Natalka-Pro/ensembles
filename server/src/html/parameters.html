@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div style="color: #228B22;">
+        <center> 
+            <h2>Здесь Вы можете посмотреть параметры и результаты 
+                <br>  для модели {{form_pred.message_name}}</h2>
+        </center>
+    </div>
+    <br> 
+    <div style="color: #4B0082;">
+        <h3> Количество деревьев в ансамбле:                    
+        {{ form_pred.message_data.n_estimators }} </h3>
+
+        <h3> Размерность подвыборки признаков: 
+        {{ form_pred.message_data.feature_subsample_size }} </h3>
+
+        <h3> Максимальная глубина дерева: 
+        {{ form_pred.message_data.max_depth }} </h3>
+        
+        {% if form_pred.message_bool: %}
+            <h3> Темп обучения: 
+                {{ form_pred.message_data.learning_rate }} </h3>
+        {% endif %}
+
+        <h3> Название файла обучающей выборки: 
+            {{ form_pred.message_data.file_train.data.filename }} </h3>
+
+        <h3> Название файла валидационной выборки: 
+            {{ form_pred.message_data.file_val.data.filename }} </h3>
+
+        <h3> Ошибка (RMSE) на обучающей выборке: 
+            {{ form_pred.message_loss_train[-1] }} </h3>
+
+        <h3> Ошибка (RMSE) на валидационной выборке: 
+            {{ form_pred.message_loss_val[-1] }} </h3>
+
+        <h4><table  border="1" width="800" style="border-collapse:collapse; height:100px"
+            cellspacing="0" cellpadding="10">
+            <tr>
+            <td><b>Номер итерации</td>
+            <td><b>RMSE на обучающей выборке</td>
+            <td><b>RMSE на валидационной выборке</td>
+            <td><b>Время</td>
+            <tr>
+            
+            {% for i in numbers%}
+                <tr valign="middle">
+                    <td>{{i}}
+                    <td>{{form_pred.message_loss_train[i]}}</td>
+                    <td>{{form_pred.message_loss_val[i]}}</td>
+                    <td>{{form_pred.message_times[i]}}</td>
+                </tr>
+            {%endfor%}
+            <table></h4>
+            <br>
+
+    </div>
+</div>
+{% endblock %}

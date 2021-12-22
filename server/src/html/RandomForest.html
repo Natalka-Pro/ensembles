@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+
+    <div style="color: #228B22;">  <center>
+        <h1>Random Forest</h1>
+        <h2>Загрузите обучающую выборку. <br> 
+            Столбец с целевой переменной должен называться "price".</h2>  <br>
+        </center>
+
+        <h3> - Если в ваших выборках есть столбец с именем "date",
+            он автоматически  преобразуется в три столбца 
+            с именами "day", "month", "year".  <br>
+            - Если в ваших выборках есть столбец с именем 'id', 
+            он автоматически удалится. <br>
+            - Если какой-либо другой столбец имеет тип, отличный от int или float,
+            он автоматически удалится. <br>
+            - Если Вы не хотите такого поведения, то переименуйте и/или преобразуйте столбцы. <br> 
+        </h3>
+        
+    </div>
+
+    {% for mesg in get_flashed_messages() %}
+      <h2><span style="color: darkred;">{{ mesg }}</span></h2>
+    {% endfor %}
+
+    <div style="color: #4B0082;"> 
+    <hr><h4>
+        {{ wtf.quick_form(form) }}
+    <hr></h4>
+
+    </div>
+</div>
+{% endblock %}
+
